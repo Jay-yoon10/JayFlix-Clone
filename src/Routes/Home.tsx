@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
 import { useQuery } from 'react-query';
-import { getMovies, IGetMoviesResult } from '../api';
+import {
+  getLatestMovies,
+  getPopularMovies,
+  IGetDataResult,
+  LIST_TYPE,
+  MovieType,
+} from '../api';
 import styled from 'styled-components';
 import { makeImagePath } from './utils';
 import { AnimatePresence, motion, useScroll } from 'framer-motion';
 import useWindowDimensions from '../useWindowDimensions';
 import { useMatch, useNavigate } from 'react-router-dom';
+import Sliders from '../Components/Sliders';
 
 const Wrapper = styled.div`
   background: black;
@@ -37,151 +43,21 @@ const Overview = styled.p`
   overflow: hidden;
   text-overflow: ellipsis;
 `;
-const Slider = styled(motion.div)`
+
+const SliderContainer = styled.div`
   position: relative;
-  top: -80px;
-`;
-const Row = styled(motion.div)`
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 5px;
-  position: absolute;
-  width: 100%;
-`;
-const Box = styled(motion.div)<{ bgPhoto: string }>`
-  background-color: white;
-  background-image: url(${(props) => props.bgPhoto});
-  background-size: cover;
-  background-position: center center;
-  height: 200px;
-  font-size: 66px;
-  &:first-child {
-    transform-origin: center left;
-  }
-  &:last-child {
-    transform-origin: center right;
-  }
-  cursor: pointer;
-`;
-const Info = styled(motion.div)`
-  padding: 10px;
-  background-color: ${(props) => props.theme.black.lighter};
-  opacity: 0;
-  position: absolute;
-  width: 100%;
-  bottom: 0;
-  h4 {
-    text-align: center;
-    font-size: 18px;
-  }
+  margin-top: -16.8rem;
 `;
 
-const Overlay = styled(motion.div)`
-  position: fixed;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  opacity: 0;
-`;
-const SelectedMovie = styled(motion.div)`
-  position: absolute;
-  width: 40vw;
-  height: 80vh;
-  right: 0;
-  margin: 0, auto;
-  background-color: ${(props) => props.theme.black.lighter};
-  /* margin: 0 auto; */
-  border-radius: 15px;
-  overflow: hidden;
-`;
-const SelectedMovieCover = styled.div`
-  width: 100%;
-  background-size: cover;
-  background-position: center center;
-  height: 400px;
-`;
-const SelectedMovieTitle = styled.h3`
-  color: ${(props) => props.theme.white.lighter};
-  /* text-align: center; */
-  padding: 20px;
-  font-size: 38px;
-  position: relative;
-  top: -60px;
-`;
-const BigOverview = styled.p`
-  position: relative;
-  top: -80px;
-  padding: 10px;
-  color: ${(props) => props.theme.white.lighter};
-`;
-const rowVariants = {
-  hidden: {
-    x: window.outerWidth - 5,
-  },
-  visible: {
-    x: 0,
-  },
-  exit: {
-    x: -window.outerWidth + 5,
-  },
-};
-const offset = 6;
-const boxVariants = {
-  normal: {
-    scale: 1,
-  },
-  hover: {
-    scale: 1.3,
-    y: -50,
-    transition: {
-      delay: 0.3,
-      duration: 0.3,
-      type: 'tween',
-    },
-  },
-};
-const infoVariants = {
-  hover: {
-    opacity: 1,
-    transition: {
-      delay: 0.3,
-      duration: 0.3,
-      type: 'tween',
-    },
-  },
-};
 export default function Home() {
-  const navigate = useNavigate();
-  const selectedMovieMatch = useMatch('/movies/:movieId');
-  const width = useWindowDimensions();
-  const { scrollY } = useScroll();
-  console.log(width);
-  const { data, isLoading } = useQuery<IGetMoviesResult>(
-    ['movies', 'nowPlaying'],
-    getMovies
+  const { data: latestMovies, isLoading } = useQuery<IGetDataResult>(
+    [MovieType.LatestMovies, 'latestMovies'],
+    getLatestMovies
   );
-  const [index, setIndex] = useState(0);
-  const [leaving, setLeaving] = useState(false);
-  const increaseIndex = () => {
-    if (data) {
-      if (leaving) return;
-      toggleLeaving();
-      const totalMovies = data.results.length - 1;
-      const maxIndex = Math.floor(totalMovies / offset) - 1;
-      setIndex((prev) => (prev === maxIndex ? 0 : prev + 1));
-    }
-  };
-  const toggleLeaving = () => setLeaving((prev) => !prev);
-  const onBoxClicked = (movieId: number) => {
-    navigate(`/movies/${movieId}`);
-  };
-  const onOverlayClick = () => navigate('/');
-  const clickedMovie =
-    selectedMovieMatch?.params.movieId &&
-    data?.results.find(
-      (movie) => String(movie.id) === selectedMovieMatch.params.movieId
-    );
+  const { data: popularMovies } = useQuery<IGetDataResult>(
+    [MovieType.PopularMovies, 'popularMovies'],
+    getPopularMovies
+  );
   return (
     <Wrapper>
       {isLoading ? (
@@ -189,79 +65,57 @@ export default function Home() {
       ) : (
         <>
           <Banner
-            onClick={increaseIndex}
-            bgPhoto={makeImagePath(data?.results[0].backdrop_path || '')}
+            bgPhoto={makeImagePath(
+              latestMovies?.results[0].backdrop_path || ''
+            )}
           >
-            <Title>{data?.results[0].title}</Title>
-            <Overview>{data?.results[0].overview}</Overview>
+            <Title>{latestMovies?.results[0].title}</Title>
+            <Overview>{latestMovies?.results[0].overview}</Overview>
           </Banner>
-          <Slider>
-            <AnimatePresence initial={false} onExitComplete={toggleLeaving}>
-              <Row
-                // variants={rowVariants}
-                initial={{ x: width - 7 }}
-                animate={{ x: 0 }}
-                exit={{ x: -width + 7 }}
-                key={index}
-                transition={{ type: 'tween', duration: 1 }}
-              >
-                {data?.results
-                  .slice(1)
-                  .slice(offset * index, offset * index + offset)
-                  .map((movie) => (
-                    <Box
-                      layoutId={movie.id + ''}
-                      key={movie.id}
-                      whileHover='hover'
-                      initial='normal'
-                      variants={boxVariants}
-                      transition={{ type: 'tween' }}
-                      bgPhoto={makeImagePath(movie.backdrop_path, 'w500')}
-                      onClick={() => onBoxClicked(movie.id)}
-                    >
-                      <Info variants={infoVariants}>
-                        <h4>{movie.title}</h4>
-                      </Info>
-                    </Box>
-                  ))}
-              </Row>
-            </AnimatePresence>
-          </Slider>
-          <AnimatePresence>
-            {selectedMovieMatch ? (
-              <>
-                <Overlay
-                  onClick={onOverlayClick}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                />
-                <SelectedMovie
-                  style={{
-                    top: scrollY.get() + 50,
-                    left: width / 3.4,
-                  }}
-                  layoutId={selectedMovieMatch.params.movieId}
+
+          <SliderContainer>
+            <Sliders
+              data={latestMovies as IGetDataResult}
+              title={'Latest Movies...'}
+              type={'movie'}
+              list={LIST_TYPE[0]}
+              category={'home'}
+            />
+            <Sliders
+              data={popularMovies as IGetDataResult}
+              title={'Popular Movies...'}
+              type={'movie'}
+              list={LIST_TYPE[1]}
+              category={'home'}
+            />
+            {/* <Slider>
+              <AnimatePresence initial={false} onExitComplete={toggleLeaving}> */}
+            {/* <LeftButton
+                  xmlns='http://www.w3.org/2000/svg'
+                  viewBox='-200 0 720 500'
+                  onClick={decreaseIndex}
+                  initial={{ opacity: 0 }}
+                  whileHover={{ opacity: 1 }}
                 >
-                  {clickedMovie && (
-                    <>
-                      <SelectedMovieCover
-                        style={{
-                          backgroundImage: `linear-gradient(to top, black, transparent), url(${makeImagePath(
-                            clickedMovie.backdrop_path,
-                            'w500'
-                          )})`,
-                        }}
-                      />
-                      <SelectedMovieTitle>
-                        {clickedMovie.title}
-                      </SelectedMovieTitle>
-                      <BigOverview>{clickedMovie.overview}</BigOverview>
-                    </>
-                  )}
-                </SelectedMovie>
-              </>
-            ) : null}
-          </AnimatePresence>
+                  <motion.path d='M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l192 192c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L77.3 256 246.6 86.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-192 192z' />
+                </LeftButton> */}
+            {/* <TopRatedMovies
+                  toggleLeaving={toggleLeaving}
+                  index={index}
+                  onBoxClicked={onBoxClicked}
+                /> */}
+            {/* <RightButton
+                  initial={{ opacity: 0 }}
+                  whileHover={{ opacity: 1 }}
+                  xmlns='http://www.w3.org/2000/svg'
+                  viewBox='-400 0 720 500'
+                  onClick={increaseIndex}
+                >
+                  <motion.path d='M310.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L242.7 256 73.4 86.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192z' />
+                </RightButton> */}
+            {/* </AnimatePresence>
+            </Slider> */}
+          </SliderContainer>
         </>
       )}
     </Wrapper>
