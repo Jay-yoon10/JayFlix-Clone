@@ -1,21 +1,21 @@
-import { AnimatePresence, motion, useScroll } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { IGetDataResult } from '../api';
 import { makeImagePath } from '../Routes/utils';
-import useWindowDimensions from '../useWindowDimensions';
-
+import ReactStars from 'react-stars';
 interface ISlider {
   data: IGetDataResult;
   title: string;
   type: string;
   category: string;
   list: string;
+  keyword?: string;
 }
 const Slider = styled(motion.div)`
   position: relative;
-  min-height: 22rem;
+  min-height: 17rem;
   margin-top: 5rem;
   overflow: hidden;
 `;
@@ -27,12 +27,14 @@ const Row = styled(motion.div)`
   width: 100%;
 `;
 export const Box = styled(motion.div)<{ bgPhoto: string }>`
+  display: block;
   background-color: white;
   background-image: url(${(props) => props.bgPhoto});
   background-size: cover;
   background-position: center center;
   height: 200px;
   font-size: 66px;
+
   &:first-child {
     transform-origin: center left;
   }
@@ -40,6 +42,9 @@ export const Box = styled(motion.div)<{ bgPhoto: string }>`
     transform-origin: center right;
   }
   cursor: pointer;
+`;
+const CategoryTitle = styled(motion.div)`
+  font-size: larger;
 `;
 export const ButtonContainer = styled(motion.div)`
   display: flex;
@@ -114,20 +119,44 @@ const SelectedMovieCover = styled.div`
   width: 100%;
   background-size: cover;
   background-position: center center;
-  height: 400px;
+  height: 300px;
 `;
 const SelectedMovieTitle = styled.h3`
   color: ${(props) => props.theme.white.lighter};
   /* text-align: center; */
-  padding: 20px;
-  font-size: 38px;
+  padding-top: 20px;
+  padding-left: 10px;
+  font-size: 35px;
   position: relative;
   top: -60px;
 `;
+const ModalWrapper = styled.div`
+  display: flex;
+`;
+const LeftSection = styled.div`
+  font-weight: bolder;
+  display: flex;
+  flex-direction: column;
+  width: 65%;
+`;
+const RightSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 30%;
+`;
+const RightSectionInfo = styled.div`
+  font-weight: bolder;
+  position: relative;
+  padding-left: 10px;
+  top: -40px;
+`;
+const ReleaseDate = styled.div``;
 const BigOverview = styled.p`
   position: relative;
-  top: -80px;
-  padding: 10px;
+  padding-left: 10px;
+  top: -40px;
   color: ${(props) => props.theme.white.lighter};
 `;
 
@@ -147,7 +176,23 @@ export const boxVariants = {
 
   hover: {
     scale: 1.3,
-    y: -50,
+    y: -20,
+    transition: {
+      delay: 0.3,
+      duration: 0.3,
+      type: 'tween',
+    },
+  },
+};
+const categoryVariants = {
+  initial: {
+    opacity: 0.8,
+  },
+  hover: {
+    scale: 1.2,
+    opacity: 1,
+    y: 0,
+    x: 180,
     transition: {
       delay: 0.3,
       duration: 0.3,
@@ -173,35 +218,32 @@ export default function Sliders({
   type,
   category,
   list,
+  keyword,
 }: ISlider) {
   const [leaving, setLeaving] = useState(false);
   const [back, setBack] = useState(false);
   const [index, setIndex] = useState(0);
-  const { scrollY } = useScroll();
-  const width = useWindowDimensions();
+  const navigate = useNavigate();
   const onOverlayClick = () => {
-    if (category === 'home') category = '';
-    if (type) {
-      navigate(type);
-    } else {
-      navigate(`${category}`);
-    }
+    if (category === 'home') navigate('/');
+    if (category === 'tvHome') navigate('/tv');
+    if (category === 'searchHome') navigate(`/search?keyword=${keyword}`);
   };
 
-  const navigate = useNavigate();
   const selectedMovieMatch = useMatch(`/${category}/${type}/:Id`);
   const clickedMovie =
     selectedMovieMatch?.params.Id &&
     data?.results.find(
       (movie) => String(movie.id) === selectedMovieMatch.params.Id
     );
+  console.log(clickedMovie);
 
-  console.log('selectedMovie', selectedMovieMatch);
-  console.log('clickedMovie', clickedMovie);
-  console.log('list', list);
-
-  const onBoxClicked = (id: number, menu: string, type: string) => {
-    navigate(`/${menu}/${type}/${id}`);
+  const onBoxClicked = (menu: string, id: number, type?: string) => {
+    if (type) {
+      navigate(`/${menu}/${type}/${id}?keyword=${keyword}`);
+    } else {
+      navigate(`/search/${menu}/${id}?keyword=${keyword}`);
+    }
   };
 
   const toggleLeaving = () => setLeaving((prev) => !prev);
@@ -237,7 +279,14 @@ export default function Sliders({
         onExitComplete={toggleLeaving}
         custom={back}
       >
-        <div>{title}</div>
+        <CategoryTitle
+          variants={categoryVariants}
+          initial='initial'
+          whileHover='hover'
+          transition={{ type: 'tween' }}
+        >
+          {title}
+        </CategoryTitle>
         <ButtonContainer>
           <LeftButton
             xmlns='http://www.w3.org/2000/svg'
@@ -269,11 +318,11 @@ export default function Sliders({
                 variants={boxVariants}
                 transition={{ type: 'tween' }}
                 bgPhoto={makeImagePath(data.backdrop_path, 'w500')}
-                onClick={() => onBoxClicked(data.id, category, type)}
+                onClick={() => onBoxClicked(category, data.id, type)}
                 layoutId={data.id + '' + list}
               >
                 <Info variants={infoVariants}>
-                  <h4>{data.title}</h4>
+                  <h4>{data.title || data.name}</h4>
                 </Info>
               </Box>
             ))}
@@ -298,13 +347,7 @@ export default function Sliders({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             />
-            <SelectedMovie
-            // style={{
-            //   top: scrollY.get() + 50,
-            //   left: width / 3.4,
-            // }}
-            // layoutId={(selectedMovieMatch?.params.Id as any) + list}
-            >
+            <SelectedMovie>
               {clickedMovie && (
                 <>
                   <SelectedMovieCover
@@ -316,7 +359,31 @@ export default function Sliders({
                     }}
                   />
                   <SelectedMovieTitle>{clickedMovie.title}</SelectedMovieTitle>
-                  <BigOverview>{clickedMovie.overview}</BigOverview>
+                  <ModalWrapper>
+                    <LeftSection>
+                      <BigOverview>{clickedMovie.overview}</BigOverview>
+                    </LeftSection>
+                    <RightSection>
+                      <RightSectionInfo>
+                        Released date
+                        <ReleaseDate>{clickedMovie.release_date}</ReleaseDate>
+                      </RightSectionInfo>
+                      <RightSectionInfo>
+                        Average Rating
+                        <ReactStars
+                          count={5}
+                          size={24}
+                          value={
+                            clickedMovie.vote_average
+                              ? clickedMovie?.vote_average / 2
+                              : 0
+                          }
+                          color1='#E6E6E6'
+                          color2='#ffd700'
+                        />
+                      </RightSectionInfo>
+                    </RightSection>
+                  </ModalWrapper>
                 </>
               )}
             </SelectedMovie>

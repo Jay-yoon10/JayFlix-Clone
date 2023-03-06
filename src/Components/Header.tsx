@@ -3,6 +3,7 @@ import { motion, useAnimation, useScroll } from 'framer-motion';
 import { Link, useMatch, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { keyboard } from '@testing-library/user-event/dist/keyboard';
 const Nav = styled(motion.nav)`
   display: flex;
   justify-content: space-between;
@@ -108,12 +109,12 @@ interface IForm {
 }
 export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
-
   const homeMatch = useMatch('/');
   const tvMatch = useMatch('tv');
   const inputAnimation = useAnimation();
   const navAnimation = useAnimation();
   const { scrollY } = useScroll();
+
   const toggleSearch = () => {
     if (searchOpen) {
       inputAnimation.start({
@@ -133,11 +134,14 @@ export default function Header() {
       }
     });
   }, [scrollY]);
-  const { register, handleSubmit } = useForm<IForm>();
+
+  const { register, handleSubmit, setValue } = useForm<IForm>();
   const onValid = (data: IForm) => {
     navigate(`/search?keyword=${data.keyword}`);
+    setValue('keyword', '');
   };
   const navigate = useNavigate();
+
   return (
     <Nav variants={navVariants} animate={navAnimation} initial='top'>
       <Col>
